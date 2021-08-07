@@ -66,7 +66,11 @@ const julioPhrases = [
 ];
 
 const client = new Client({
-  intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES],
+  intents: [
+    Intents.FLAGS.GUILDS,
+    Intents.FLAGS.GUILD_MESSAGES,
+    Intents.FLAGS.GUILD_VOICE_STATES,
+  ],
 });
 
 client.once('ready', () => {
@@ -77,6 +81,8 @@ let julioAwake = true;
 client.on('messageCreate', async (message) => {
   const randomNumber = Math.floor(Math.random() * julioPhrases.length);
   const randomMessage = julioPhrases[randomNumber];
+  const Guild = client.guilds.cache.get(message.guildId);
+  const Member = Guild.members.cache.get(message.author.id);
 
   //Fetch client application
   if (!client.application?.owner) await client.application?.fetch();
@@ -113,9 +119,6 @@ client.on('messageCreate', async (message) => {
         !message.author.bot &&
         message.content.toLowerCase() === '!maestro'
       ) {
-        const Guild = client.guilds.cache.get(message.guildId);
-        const Member = Guild.members.cache.get(message.author.id);
-
         //Get voice channel
 
         const voiceChannel = Member.voice.channel;
@@ -126,9 +129,18 @@ client.on('messageCreate', async (message) => {
           );
         }
 
-        const stream = ytdl('https://www.youtube.com/watch?v=doLMt10ytHY', {
-          filter: 'audioonly',
-        });
+        const songsArray = [
+          'https://www.youtube.com/watch?v=Eja6fidZ3Y8',
+          'https://www.youtube.com/watch?v=p2AnF7mhmJg',
+          'https://www.youtube.com/watch?v=u2RjYQQp4NQ',
+        ];
+
+        const stream = ytdl(
+          songsArray[Math.floor(Math.random() * songsArray.length)],
+          {
+            filter: 'audioonly',
+          }
+        );
         const connection = joinVoiceChannel({
           channelId: Member.voice.channel.id,
           guildId: Guild.id,
@@ -143,11 +155,21 @@ client.on('messageCreate', async (message) => {
         player.play(resource);
 
         connection.subscribe(player);
-
-        player.on('playing', (e) => console.log(e));
-        player.on('buffering', (e) => console.log(e));
+        player.on(AudioPlayerStatus.Buffering, () => {
+          console.log('The audio player is buffering!');
+        });
+        player.on(AudioPlayerStatus.Playing, () => {
+          console.log('The audio player has started playing!');
+        });
 
         player.on(AudioPlayerStatus.Idle, () => connection.destroy());
+      } else if (message.content.toLowerCase() === '!calla') {
+        const connection = joinVoiceChannel({
+          channelId: Member.voice.channel.id,
+          guildId: Guild.id,
+          adapterCreator: Guild.voiceAdapterCreator,
+        });
+        connection.destroy();
       }
     }
   } else {
