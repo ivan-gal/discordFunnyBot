@@ -1,5 +1,14 @@
 require('dotenv').config();
+
 const { Client, Intents } = require('discord.js');
+const ytdl = require('ytdl-core');
+const {
+  AudioPlayerStatus,
+  StreamType,
+  createAudioPlayer,
+  createAudioResource,
+  joinVoiceChannel,
+} = require('@discordjs/voice');
 
 const julioPhrases = [
   'En 1970 di 41 conciertos en 41 ciudades españolas distintas en 30 días. Hice el amor todas las noches. 41 ciudades diferentes, 41 novias diferentes. Fue mi etapa rockera',
@@ -68,7 +77,6 @@ let julioAwake = true;
 client.on('messageCreate', async (message) => {
   const randomNumber = Math.floor(Math.random() * julioPhrases.length);
   const randomMessage = julioPhrases[randomNumber];
-  console.log(message);
 
   //Fetch client application
   if (!client.application?.owner) await client.application?.fetch();
@@ -101,6 +109,45 @@ client.on('messageCreate', async (message) => {
         message.channel.send(
           'Me voy a beber unas copas, avisame con !despierta'
         );
+      } else if (
+        !message.author.bot &&
+        message.content.toLowerCase() === '!maestro'
+      ) {
+        const Guild = client.guilds.cache.get(message.guildId);
+        const Member = Guild.members.cache.get(message.author.id);
+
+        //Get voice channel
+
+        const voiceChannel = Member.voice.channel;
+        const permissions = voiceChannel.permissionsFor(message.client.user);
+        if (!permissions.has('CONNECT') || !permissions.has('SPEAK')) {
+          return message.channel.send(
+            'I need the permissions to join and speak in your voice channel!'
+          );
+        }
+
+        const stream = ytdl('https://www.youtube.com/watch?v=doLMt10ytHY', {
+          filter: 'audioonly',
+        });
+        const connection = joinVoiceChannel({
+          channelId: Member.voice.channel.id,
+          guildId: Guild.id,
+          adapterCreator: Guild.voiceAdapterCreator,
+        });
+
+        const resource = createAudioResource(stream, {
+          inputType: StreamType.Arbitrary,
+        });
+        const player = createAudioPlayer();
+
+        player.play(resource);
+
+        connection.subscribe(player);
+
+        player.on('playing', (e) => console.log(e));
+        player.on('buffering', (e) => console.log(e));
+
+        player.on(AudioPlayerStatus.Idle, () => connection.destroy());
       }
     }
   } else {
